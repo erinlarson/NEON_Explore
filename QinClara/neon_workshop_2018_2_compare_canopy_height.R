@@ -86,3 +86,28 @@ ggplot(
   geom_point() +
   theme_bw() +
   geom_abline(a=0,b=1,linetype=3)
+
+
+# 3D plot comparing modeled and measured canopy heights
+library(plotly)
+library(tidyr)
+veg_compare %>%
+  select(adjNorthing, adjEasting, height, raster_heights) %>%
+  rename(model_height = raster_heights,
+         measured_height = height) %>%
+  gather(key = "key", value = "value", model_height:measured_height) -> veg_compare_long
+
+p <- plot_ly(
+  veg_compare_long, 
+  x = ~adjEasting, 
+  y = ~adjNorthing, 
+  z = ~value, 
+  color = ~key, 
+  colors = c('#BF382A', '#0C4B8E'),
+  size=1,
+  alpha=0.5
+) %>%
+  add_markers() %>%
+  layout(scene = list(xaxis = list(title = 'Easting'),
+                      yaxis = list(title = 'Northing'),
+                      zaxis = list(title = 'Height (m)')))
