@@ -7,6 +7,8 @@ library(jsonlite)
 library(downloader)
 library(dplyr)
 
+setwd("~/Documents/Workshops/Explore NEON Workshop 2018")
+
 # Task 1: Use /product endpoint to specify a data product to get all
 # the URLs where that product is available
 req <- GET("http://data.neonscience.org/api/v0/products/DP1.10003.001")

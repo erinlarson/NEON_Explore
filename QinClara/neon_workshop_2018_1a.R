@@ -8,15 +8,15 @@ library(geoNEON)
 library(raster)
 library(rhdf5)
 
-options(stringsAsFacors = FALSE)
+options(stringsAsFactors = FALSE)
 
-setwd("~/Documents/NEON Workshop 2018/NEON Data")
+setwd("~/Documents/Workshops/Explore NEON Workshop 2018")
 
 # Photosynthetically active radiation (PAR) data for Abby Road and 
 # Wind River Experimental Forest (WREF)
 
 # Stack data from portal (only needs to happen once for a dataset, not for each run)
-stackByTable("NEON_par.zip")
+stackByTable("data/NEON_par.zip")
 # Without this step, NEON data is difficult to use
 
 # Download new data with zipsByProduct() (wrapper to the API)
@@ -48,11 +48,11 @@ byTileAOP(
 
 
 # Load PAR data
-par30 <- read.delim("NEON_par/stackedFiles/PARPAR_30min.csv", sep=",")
+par30 <- read.delim("data/NEON_par/stackedFiles/PARPAR_30min.csv", sep=",")
 View(par30)
 
 # Load variables (metadata) table
-parvar <- read.delim("NEON_par/stackedFiles/variables.csv", sep=",")
+parvar <- read.delim("data/NEON_par/stackedFiles/variables.csv", sep=",")
 View(parvar)
 
 # Convert time series data to R-readable
@@ -69,15 +69,15 @@ plot(
 )
 
 # Load vegetation structure data
-vegmap <- read.delim("filesToStack10098/stackedFiles/vst_mappingandtagging.csv",
+vegmap <- read.delim("data/filesToStack10098/stackedFiles/vst_mappingandtagging.csv",
                      sep=",")
 View(vegmap)
 
-vegind <- read.delim("filesToStack10098/stackedFiles/vst_apparentindividual.csv",
+vegind <- read.delim("data/filesToStack10098/stackedFiles/vst_apparentindividual.csv",
                      sep=",")
 View(vegind)
 
-parvar_veg <- read.delim("filesToStack10098/stackedFiles/variables.csv",
+parvar_veg <- read.delim("data/filesToStack10098/stackedFiles/variables.csv",
                          sep=",")
 View(parvar_veg)
 
@@ -110,6 +110,5 @@ symbols(
 
 
 # Rasterize and plot Lidar data
-chm <- raster("DP3.30015.001/2017/FullSite/D16/2017_WREF_1/L3/DiscreteLidar/CanopyHeightModelGtif/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
+chm <- raster("data/DP3.30015.001/2017/FullSite/D16/2017_WREF_1/L3/DiscreteLidar/CanopyHeightModelGtif/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
 plot(chm, col=topo.colors(6))
-plot(chm)
