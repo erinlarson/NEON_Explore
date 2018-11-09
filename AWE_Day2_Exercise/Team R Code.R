@@ -22,12 +22,8 @@ vegobs <- read.csv("AWE_Day2_Exercise/vegmerge.csv")
 str(vegobs)
 vegraster <- raster("data/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
 
-=======
+
 ##
 #### reading in merged veg data
-<<<<<<< HEAD
-merged.veg <- read.delim("_Exercise⁩vegmerge.csv", sep=",")
-=======
-merged.veg <- read.delim("vegmerge.csv", sep=",")
 
->>>>>>> 9ad6f6a9700a4ab8b11eda2aa4466580ddf5de70
+merged.veg <- read.delim("vegmerge.csv", sep=",")
