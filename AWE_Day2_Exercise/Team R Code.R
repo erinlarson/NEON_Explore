@@ -12,7 +12,7 @@ dirPaste <- paste(dir,'/AWE_Day2_Exercise', sep = "")
 ##
 #### INSTALL PACKAGES
 ##
-
+install.packages('raster')
 #Library
 library(neonUtilities)
 library(geoNEON)
@@ -21,12 +21,15 @@ library(rhdf5)
 
 
 vegobs <- read.csv("AWE_Day2_Exercise/vegmerge.csv")
-str(vegobs)
+
 vegraster <- raster("data/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
 
 
 
 #### reading in merged veg data
+merged.veg <- read.delim("vegmerge.csv", sep=",")
+
+=======
 # merged.veg <- read.delim("vegmerge.csv", sep=",")
 
 str(vegobs)
