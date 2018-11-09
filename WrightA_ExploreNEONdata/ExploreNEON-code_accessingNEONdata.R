@@ -2,7 +2,7 @@
 # DATE: 8 Nov 2018
 # DESC: Workshiop code example to use and work with NEON data using relevant packages - this example uses the PAR dataset as an example
 
-#TABLE OF CONTENTS  ( TO BE FINISHED LATER)
+#TABLE OF CONTENTS  ( TO BE FINISHED LATER) x
 # NEON WORKSHOP EXAMPLE           Line#
 #Install Packages               Line#
 #...                            Line#
