@@ -22,13 +22,14 @@ library(rhdf5)
 ##
 
 # download observational data with zipsByProduct()
+  # Download veg structure data
 #Only have to do this step once (the first time you work the data)
 zipsByProduct(dpID = "DP1.10098.001", 
               site = 'WREF', #site = all for all sites
-              package = 'expanded', 
+              package = 'basic', 
               check.size = T, # turn to false when using a continious workflow
-              savepath = "C:/Users/Al/Files/PHD/25_AUG_2016/ProjectManagement/NEON")  
+              savepath = "C:/Users/Al/Files/PHD/25_AUG_2016/ProjectManagement/NEON/NEON_Explore/AWE_Day2_Exercise/Data")  
 # now stack downloaded data
-stackByTable("C:/Users/Al/Files/PHD/25_AUG_2016/ProjectManagement/NEON/filesToStack10098/", folder = T)
+stackByTable("C:/Users/Al/Files/PHD/25_AUG_2016/ProjectManagement/NEON/NEON_Explore/AWE_Day2_Exercise/Data/filesToStack10098/", folder = T)
 
 
