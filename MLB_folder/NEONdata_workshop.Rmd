@@ -1,0 +1,253 @@
+---
+title: "Workshop"
+author: "Meridith L Bartley"
+date: "11/8/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# install.packages("raster")
+#  install.package("neonUtilities")
+#  install.packages("devtools")
+# # source("http://bioconductor.org/biocLite.R")
+ # biocLite("rhdf5")
+ # library(devtools)
+ # install_github("NEONScience/NEON-geolocation/geoNEON")
+ #   
+
+ library("raster")
+ library("neonUtilities")
+ library("devtools")
+library(geoNEON)
+library(rhdf5)
+library(readr)
+
+##for API
+# install.packages("httr")
+# install.packages("jsonlite")
+
+library(httr)
+library(jsonlite)
+library(downloader)
+
+options(stringsAsFactors = F)
+ 
+```
+ 
+
+## Introduction
+
+*find videos
+*large infrastructure project
+*30 year project with 5 year renuals
+managed by Battelle - also manages lots of NPS 
+*currently in year 1 on 30, but have previous data and 5-7 years of set-up data
+*can schedule site visits
+*research proposlas/letters of suppport available
+
+## Loading Zipped Data Files from Data Portal
+
+only need to do this step right after downloading data for the first time from Data Portal
+
+```{r stack data from portal}
+?stackByTable #pulls in zipped data file
+
+stackByTable("./NEON_par", folder = T) #NEON_par is in same folder as this .Rmd 
+```
+
+## Downloading Data Directly
+
+Instead of going to the NEON Science website to download data we may also use the NEONutilities package to download data. However we do need to know the data package ID. 
+
+```{r download data with zipsByProduct()}
+zipsByProduct(dpID="DP1.10098.001", site = "WREF", 
+              package = "expanded", check.size = T)  #unsure if we want this within the NEON_par folder
+
+#can also guide savepath with savepath argment
+#need to confirm y/n
+
+stackByTable("./filesToStack10098/", folder = T)
+```
+
+## Download AOP data
+
+AOP data are Airborn Observation Platform observations are arranged in 1km x 1km Tiles with data resolution of 1m x 1m (but this varies by data product). You can download the data by Tiles using the byTileAOP function. This allows for a look at a smaller block and avoid downloading a large size of data (the entire mosaic of Tiles).
+
+Easting and Northings are a different coordinate system (rather than Latitude and Longitude) that are convient for field data. 
+
+*downloads several layers of folder organization 
+
+```{r AOP data}
+byTileAOP(dpID = "DP3.30015.001", site = "WREF", 
+          year = "2017", easting = 580000, northing = 5075000) #need to confirm y/n
+
+```
+
+## Overview of Data Access
+
+So there are two ways to access the data we've covered thus far (and one we haven't)""
+
+1. Data Portal - more intuitive 
+2. From R with NEONutilities package - great for reproducibility 
+3. Through the API 
+
+## Loading in Downloaded Data to R
+
+Tab complete within RStudio is very useful here!
+
+The stackByTable() function adds the first four columns from the original (four) zip files within NEON_par. 
+
+```{r load data to R}
+par30 <- read.delim("./NEON_par/stackedFiles/PARPAR_30min.csv", sep = ",")
+View(par30)
+
+parvar <- read.delim("./NEON_par/stackedFiles/variables.csv", sep = ",")
+View(parvar)
+```
+
+## Pre-EDA - Setting the Time Format for NEON Data
+
+
+All NEON data come with UTC (aka Greenwich (GMT) time) timestamps and we need to set the date/time formatting. R wants to read in time data in a certain way so this is an important step with all time data. "Here's what R should expect to find" not "Here's what I want". 
+
+Super useful but super annoying. 
+
+```{r setting time format}
+head(par30$startDateTime) #check current format for reference
+
+par30$startDateTime <- as.POSIXct(par30$startDateTime, 
+                                  format = "%Y-%m-%d T %H:%M:%S Z", 
+                                  tz = "GMT")
+head(par30$startDateTime) #if we screwed up there would be NA
+```
+
+## EDA - Plotting the Data
+
+Plotting Photosynthetically Active Radiation (flux of photons hitting the sensors) mean over time. Looks like daily cycling which makes sense.  
+
+```{r plotting data}
+plot(PARMean ~ startDateTime, 
+     data = par30[which(par30$verticalPosition == 80), ], 
+     type = "l")
+```
+
+## Moving on to Veg Structure Data
+
+We downloaded this using the zipsByProduct() function. 
+
+The validation .csv file provides lots of information about data quality/processing/etc. 
+
+the Data Product guide (online) is a great resource for how these different files are collected/organized. 
+
+For the mapping and tagging we have various stems that are mapped for each record. Taxonomy identifiers can be check online. Currently measured by/recorded by data is privitized. 
+
+Here we only have dates (no times) but within NEON there is the added assumption of noon local time. 
+
+We may find the ID and location of individual trees in the vegmap table.
+
+In the vegind table we get individual data on each tree. Note that the data quility is marked as Legacy Data. This means the data were originally on paper and input later. 
+
+```{r loading Veg Structure Data to R}
+validation <- read_csv("filesToStack10098/stackedFiles/validation.csv")
+View(validation)
+
+variables <- read_csv("filesToStack10098/stackedFiles/variables.csv")
+View(variables)
+
+vegmap <- read_csv("filesToStack10098/stackedFiles/vst_mappingandtagging.csv")
+View(vegmap)
+
+vegind <- read_csv("filesToStack10098/stackedFiles/vst_apparentindividual.csv")
+View(vegind)
+```
+ 
+ ## Extracting Location Data
+ 
+ Here we will get into the geoNEON R package. This package is still a work in progress (i.e. not on CRAN) but it provides functionality for spatial data. 
+
+The mapping and tagging data we just loaded into R can be converted using geoNEON functions to extract the appropriate information so that we can map the trees appropriately. 
+
+We have to tell it what sort of data product we are using (here the file name) as this process varies.  
+
+1. It goes for each named location, a point within plot, and finds the location information. 
+2. Then it calculates the relative location of each individual stem. 
+ 
+```{r extrat location information}
+vegmap <- geoNEON::def.calc.geo.os(vegmap, "vst_mappingandtagging")
+```
+
+## Merging Data
+
+Merging data into a unified table.
+
+```{r merging data}
+veg <- merge(vegind, vegmap, by = c("individualID", "namedLocation",
+                                    "domainID", "siteID", "plotID"))
+```
+
+## EDA - Plotting Veg Data
+
+We are subsetting to a single plot so the plot isn't as busy. 
+
+```{r plotting veg data}
+symbols(veg$adjEasting[which(veg$plotID == "WREF_085")], 
+        veg$adjNorthing[which(veg$plotID == "WREF_085")], 
+        circles = veg$stemDiameter[which(veg$plotID == "WREF_085")]/100, 
+        xlab = "Easting", ylab = "Northing", inches =F)
+```
+
+## Loading AOP Data to R
+
+Just use tab complete all the way down!
+
+Data product information may be found at http://data.neonscience.org/documents?p_p_id=110_INSTANCE_JEygRkSpUBoq&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=column-1&p_p_col_count=1&_110_INSTANCE_JEygRkSpUBoq_redirect=http%3A%2F%2Fdata.neonscience.org%2Fdocuments%3Fp_p_id%3D110_INSTANCE_JEygRkSpUBoq%26p_p_lifecycle%3D0%26p_p_state%3Dnormal%26p_p_mode%3Dview%26p_p_col_id%3Dcolumn-1%26p_p_col_count%3D1%26_110_INSTANCE_JEygRkSpUBoq_redirect%3Dhttp%253A%252F%252Fdata.neonscience.org%252Fdocuments%252F-%252Fdocument_library_display%252FJEygRkSpUBoq%252Fview%252F2237401%253F_110_INSTANCE_JEygRkSpUBoq_redirect%253Dhttp%25253A%25252F%25252Fdata.neonscience.org%25252Fdocuments%25253Fp_p_id%25253D110_INSTANCE_JEygRkSpUBoq%252526p_p_lifecycle%25253D0%252526p_p_state%25253Dnormal%252526p_p_mode%25253Dview%252526p_p_col_id%25253Dcolumn-1%252526p_p_col_count%25253D1%26_110_INSTANCE_JEygRkSpUBoq_breadcrumbsFolderId%3D2237401%26_110_INSTANCE_JEygRkSpUBoq_keywords%3Dveg%26_110_INSTANCE_JEygRkSpUBoq_formDate%3D1541703377390%26_110_INSTANCE_JEygRkSpUBoq_repositoryId%3D10179%26_110_INSTANCE_JEygRkSpUBoq_struts_action%3D%252Fdocument_library_display%252Fsearch%26_110_INSTANCE_JEygRkSpUBoq_searchFolderIds%3D2237401%26_110_INSTANCE_JEygRkSpUBoq_folderId%3D2237401&_110_INSTANCE_JEygRkSpUBoq_struts_action=%2Fdocument_library_display%2Fview_file_entry&_110_INSTANCE_JEygRkSpUBoq_fileEntryId=2357401 
+
+```{r}
+chm <- raster("./DP3.30015.001/2017/FullSite/D16/2017_WREF_1/L3/DiscreteLidar/CanopyHeightModelGtif/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
+
+plot(chm, col=topo.colors(6)) #legend = height data, this LiDAR data is highly process (think going from lasers to heights)
+```
+
+
+## Using the API to load data
+
+Both the data portal and the R packages act as wrappers for using API to access data. But you can also get more flexibility by using API approaches more direclty. 
+
+The following is occuring within the zipsByProduct() function used previously. 
+
+This approach may be more useful when automating data quiries, creating apps, ect. 
+
+
+```{r loading bird data through API}
+
+req <- GET(url = "http://data.neonscience.org/api/v0/products/DP1.10003.001")
+req 
+
+req.content <- content(x = req, as = "parsed")
+req.content
+
+available <- fromJSON(content(req, as = "text"))
+available
+
+bird.urls <- unlist(available$data$siteCodes$availableDataUrls)
+bird.urls
+
+bird <- GET(bird.urls[grep("WOOD/2015-07", bird.urls)])
+bird.files <- fromJSON(content(bird, as = "text"))
+
+
+bird.count <- read.delim(bird.files$data$files$url[intersect(grep("countdata",
+                                                        bird.files$data$files$name), 
+                                                        grep("basic", 
+                                                             bird.files$data$files$name))], 
+                         sep = ",")
+View(bird.count)
+
+loon.req <- GET("http://data.neonscience.org/api/v0/taxonomy/?family=Gaviidae")
+# loon.req <- GET("http://data.neonscience.org/api/v0/taxonomy/?family=Gaviidae&verbose=true") #more info
+
+loon.files <- fromJSON(content(loon.req, as = "text"))
+
+View(loon.files$data)
+```
+
