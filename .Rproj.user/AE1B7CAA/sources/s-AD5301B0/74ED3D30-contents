@@ -1,0 +1,144 @@
+---
+title: 'NEON Tutorial: Downloading and using NEON data'
+author: "Wynne Moss"
+date: "November 9, 2018"
+output:
+  md_document:
+    variant: markdown_github
+---
+
+```{r setup, include=FALSE}
+# install.packages("raster")
+# install.packages("neonUtilities")
+# install.packages("devtools")
+#' source("http://bioconductor.org/biocLite.R")
+#' biocLite("rhdf5")
+#' install_github("NEONScience/NEON-geolocation/geoNEON")
+library(raster)
+library(neonUtilities)
+library(devtools)
+library(geoNEON)
+library(rhdf5)
+options(stringsAsFactors = FALSE)
+```
+
+# Stacking data downloaded from NEON
+Previously, we downloaded June July PAR from NEON's web interface. All data are in month by site files. Function `stackByTable` will merge files.
+
+```{r, eval = FALSE}
+stackByTable("NEON_par.zip")
+
+# if already unzipped
+stackByTable("NEON_par", folder = T)
+```
+
+Stack will unzip, will merge all the same file types (all 1 mins together, all 30 mins together)
+
+# Download observational data using NEON utilities
+Function `zipsByProduct` uses the NEON API.
+```{r, eval = FALSE}
+zipsByProduct(dpID = "DP1.10098.001", # woody veg structure data
+              site = "WREF", # could put in site = "all" to get all sites
+               package = "expanded",
+               check.size = TRUE, # turn to F if you're using a workflow
+               savepath = "/Users/wynnemoss/PhD life/Projects and Data/NEON/ExploreNEON") # use current wd
+
+stackByTable("filesToStack10098", folder = T)
+
+```
+
+# Downloading Remote Sensing data
+This is AOP data. The argument `byFile` = downloads everything available for a given data product by site by year (can be way too big).
+Argument `byTile` is to download just a specific tile based on coordinates.
+```{r, eval = FALSE}
+byTileAOP(dpID = "DP3.30015.001", #canopy height data
+          site = "WREF", year = "2017",
+          easting = 580000, northing = 5075000
+          ) # UTM coordinates (just need to fall within that tile), could put a vector for multiple
+
+```
+
+This example downloads just a patch from the mosaic. In practice, figure out the coordinates of the plot you care about and put them in this script.
+
+# Working with PAR data
+Read in the stacked data:
+```{r}
+par30 <- read.delim("NEON_par/stackedFiles/PARPAR_30min.csv", sep = ",") #tab will help
+# View(par30)
+str(par30)
+```
+
+The first four columns are added by stack by table. Each file was separated by these four columns (we used to have one for each position)
+
+Read in the variables file to see metadata:
+```{r}
+parvar <- read.delim("NEON_par/stackedFiles/variables.csv", sep = ",")
+# View(parvar)
+```
+
+All NEON times are in UTC formatting (GMT). We need to tell R that this is a date and what kind of formatting it is.
+
+```{r}
+par30$startDateTime <- as.POSIXct(par30$startDateTime, 
+                                  format = "%Y-%m-%d T %H:%M:%S Z",
+                                  tz = "GMT")
+str(par30)
+
+```
+
+Time zone indicator is at the end. For more information, see help files for `striptime`. Once you do this, now you can convert to local time
+
+Visualize the data:
+```{r}
+plot(PARMean~startDateTime, 
+     data = par30[which(par30$verticalPosition==80),],# this will only grab WR data because it's the highest tower position in the dataset
+     type = "l", lwd = 1.5, col = "magenta") 
+```
+
+# Working with vegetation structure data
+This is observational data giving vegetative structure. Validation file gets at how the data were QCd
+```{r, echo = FALSE}
+vegmap <- read.delim("filesToStack10098/stackedFiles/vst_mappingandtagging.csv", sep = ",")
+```
+
+Next read in a file gives the ID and location of individual trees
+```{r, echo = FALSE}
+vegind <- read.delim("filesToStack10098/stackedFiles/vst_apparentindividual.csv", sep = ",")
+```
+
+Note: data QF legacy data are old observational data from paper datasheets
+
+# Getting locational data
+Mapping and tagging data has plots but no actual locational data. `calc.geo` function calculates precise loations for specific observations.
+```{r, message = FALSE, warning = FALSE, results = "hide"}
+vegmap <- geoNEON::def.calc.geo.os(vegmap, 
+                                   "vst_mappingandtagging") # tell it what data it is
+```
+
+Data product user guides will help you figure out what data source to use. This function looks up the plot and the point within the plot and looks for the location. Takes NAmed Location + Point ID, and looks up that value. Then it gets a location for point id, then takes the stemlocation relative to point ID (because we have stem length and angle)
+
+Now, let's join the two tables
+
+```{r}
+veg <- merge(vegind, vegmap, by = c("individualID", "namedLocation", 
+                                    "domainID", "siteID", "plotID"))
+```
+
+Plot the data:
+```{r}
+symbols(veg$adjEasting[which(veg$plotID == "WREF_085")],
+        veg$adjNorthing[which(veg$plotID == "WREF_085")],
+        circles = veg$stemDiameter[which(veg$plotID == "WREF_085")]/100,
+        xlab = "Easting", ylab = "Northing", inches = F, bg = "brown")
+```
+
+# Using AOP files
+Airborne flight data (remote sensing)
+```{r}
+chm <- raster("DP3.30015.001/2017/FullSite/D16/2017_WREF_1/L3/DiscreteLidar/CanopyHeightModelGtif/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
+str(chm)
+plot(chm, col = topo.colors(6))
+```
+
+
+
