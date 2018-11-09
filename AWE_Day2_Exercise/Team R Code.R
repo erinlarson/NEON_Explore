@@ -44,9 +44,5 @@ vegobslocs <- c(vegobs$adjNorthing, vegobs$adjEasting)
 nrow(vegobs)
 
 rasterCanValues <- raster::extract(vegraster, y = vegobs)
-=======
-##
-#### reading in merged veg data
 
-merged.veg <- read.delim("vegmerge.csv", sep=",")
 
