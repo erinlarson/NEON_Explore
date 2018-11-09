@@ -1,0 +1,159 @@
+---
+title: "NEON data workshop - day 1"
+output: html_notebook
+date: 11-0802018
+---
+
+```{r setup}
+
+options(stringsAsFactors = F)
+
+#make default plot white on white background
+th <- theme_bw()+ theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+theme_set(th)
+
+#load libraries
+library(neonUtilities)
+library(geoNEON)
+library(raster)
+library(rhdf5)
+library(ggplot2)
+library(tidyverse)
+
+proj_dir <- "/Users/lilaleatherman/Box/workshops/neon_data_workshop/"
+
+```
+
+
+```{r unstack using stack by table}
+
+#stack data from portal
+stackByTable(paste0(proj_dir, "data/NEON_par"), folder = T)
+
+#stacked data located in paste0(proj_dir, "data/NEON_par/stackedFiles"
+
+```
+Stack by table combines files into one, adds columns for vertical and horizontal positions.
+
+```{r download data with zipsByProduct}
+# download data with zipsByProduct() - a wrapper for the neon API
+#getting woody cover data for Wind River
+
+zipsByProduct(dpID = "DP1.10098.001", site = "WREF",
+              package = "expanded", check.size = T,   #check.size asks for approval, set to F if using a batch workflow 
+              savepath = paste0(proj_dir, "data"))
+#output is "filesToStack"+data product number
+
+stackByTable(paste0(proj_dir, "data/filesToStack10098"), folder = T)
+
+```
+```{r download remote sensing data}
+
+#download AOP data
+byTileAOP(dpID = "DP3.30015.001", site = "WREF", year = "2017", # canopy height model
+          easting = 580000, northing = 5075000, savepath = paste0(proj_dir, "data"))  #here we're just using one value for E+N, but you can use a vector for E+N as well
+
+```
+```{r load data - PAR}
+
+par30 <- read.delim(paste0(proj_dir, "data/NEON_par/stackedFiles/PARPAR_30min.csv"), sep = ",")
+parvar <- read.delim(paste0(proj_dir, "data/NEON_par/stackedFiles/variables.csv"), sep = ",")
+
+#format to timeseries
+#general GMT timezone - as opposed to local time
+par30$startDateTime <- as.POSIXct(par30$startDateTime,
+                                  format = "%Y-%m-%d T %H:%M:%S Z",
+                                  tz = "GMT")
+
+#change to local time to look at daily dynamics
+library(lubridate)
+
+par30$startDateTime_local <- with_tz(par30$startDateTime, "US/Pacific")
+
+#inspect
+par30 %>%
+  ggplot(aes(x = startDateTime, y = PARMean)) + 
+  geom_line() + 
+  theme(panel.grid.major.y = element_line(color = "grey"))
+
+#inspect single few days
+par30 %>%
+  filter(startDateTime_local > "2018-07-01" & startDateTime_local < "2018-07-07") %>%
+  ggplot(aes(x = startDateTime_local, y = PARMean)) + 
+  geom_line() +
+  #geom_point() +
+  theme(panel.grid.major.y = element_line(color = "grey"))
+
+#inspect single few days and vert positions
+par30 %>%
+  filter(startDateTime_local > "2018-07-01" & startDateTime_local < "2018-07-07") %>%
+  filter(verticalPosition %in% c(10, 40, 80)) %>%
+  ggplot(aes(x = startDateTime_local, y = PARMean, color = factor(verticalPosition)), group = verticalPosition) + 
+  geom_line() +
+  #geom_point() +
+  theme(panel.grid.major.y = element_line(color = "grey"))
+
+
+```
+```{r load veg structure data}
+
+vegmap <- read.delim(paste0(proj_dir, "data/filesToStack10098/stackedFiles/vst_mappingandtagging.csv"), sep = ",")
+
+vegind <- read.delim(paste0(proj_dir, "data/filesToStack10098/stackedFiles/vst_apparentindividual.csv"), sep = ",")
+
+```
+
+geoNEON provides functionality for spatial data around NEON data. 
+For example, mapping and tagging data locations are relative to a named point, but don't have absolute location data themselves. geoNEON allows you to calculate the locations.
+
+based on namedLocation, pointID, stemDistance, stemAzimuth - calculates the location by querying API
+
+```{r look at stem diameter in plots}
+
+#get lat / long from NEON
+vegmap <- geoNEON::def.calc.geo.os(vegmap, "vst_mappingandtagging")
+
+#join locations with stem diameter
+veg <- merge(vegmap, vegind, by = c("individualID", "namedLocation", "domainID", "siteID", "plotID"))
+
+#plot stem diameters
+veg %>%
+  filter(plotID == "WREF_085") %>%                    #looking at only one plot
+  ggplot(aes(x = adjEasting, y = adjNorthing)) +
+  geom_point(aes(size = stemDiameter/100), shape = 1)
+
+```
+```{r look at AOP data}
+
+#load: canopy height model
+chm <- raster(paste0(proj_dir, "data/DP3.30015.001/2017/FullSite/D16/2017_WREF_1/L3/DiscreteLidar/CanopyHeightModelGtif/NEON_D16_WREF_DP3_580000_5075000_CHM.tif"))
+
+#basic plot
+plot(chm, col = topo.colors(6))
+
+#plot using ggplot
+library(viridis)
+
+#write function to convert raster to ggplot-friendly format
+raster_to_pts_gg <- function(raster) {
+  spdf <- as(raster, "SpatialPixelsDataFrame")
+  df <- as.data.frame(spdf)
+  colnames(df) <- c("value", "x", "y")
+  df
+}
+
+chm_gg <- raster_to_pts_gg(chm)
+
+ggplot() + 
+  geom_raster(data = chm_gg, aes(x = x, y = y, fill = value)) + 
+  scale_fill_viridis() + 
+  #remove default plotting background
+  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+```
+
+Additional notes:
+* you should start with the user guide when working with observational data. 
+access here: http://data.neonscience.org/documents/-/document_library_display/JEygRkSpUBoq/view/2237401?_110_INSTANCE_JEygRkSpUBoq_redirect=http%3A%2F%2Fdata.neonscience.org%2Fdocuments%3Fp_p_id%3D110_INSTANCE_JEygRkSpUBoq%26p_p_lifecycle%3D0%26p_p_state%3Dnormal%26p_p_mode%3Dview%26p_p_col_id%3Dcolumn-1%26p_p_col_count%3D1 
+
+example file: http://data.neonscience.org/documents/10179/2237401/NEON_vegStructure_userGuide_vA/b390b73d-b259-46d8-9522-58fd72f12f8e?version=1.1 
