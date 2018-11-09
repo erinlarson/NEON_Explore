@@ -2,6 +2,8 @@
 # Date: 9 Nov 2018
 # Description: Team exercise to compare the veg structure and canopy height 
 
+dir <- getwd()
+dirPaste <- paste(dir,'/AWE_Day2_Exercise', sep = "")
 
 #########
 ## PART - Setting up the example
@@ -23,6 +25,7 @@ str(vegobs)
 vegraster <- raster("data/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
 
 
+
 #### reading in merged veg data
 # merged.veg <- read.delim("vegmerge.csv", sep=",")
 
@@ -41,3 +44,9 @@ vegobslocs <- c(vegobs$adjNorthing, vegobs$adjEasting)
 nrow(vegobs)
 
 rasterCanValues <- raster::extract(vegraster, y = vegobs)
+=======
+##
+#### reading in merged veg data
+
+merged.veg <- read.delim("vegmerge.csv", sep=",")
+
