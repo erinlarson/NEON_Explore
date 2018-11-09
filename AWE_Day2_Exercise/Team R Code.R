@@ -1,7 +1,7 @@
 # Names: Alex Wright, Erin Larson, and Wynne Moss
 # Date: 9 Nov 2018
 # Description: Team exercise to compare the veg structure and canopy height 
-
+#here's a link to the answers from Claire's tutorial: https://github.com/NEONScience/NEON-Data-Skills/blob/master/tutorials-in-development/canopy-height/veg_structure_and_chm.ipynb
 dir <- getwd()
 dirPaste <- paste(dir,'/AWE_Day2_Exercise', sep = "")
 
