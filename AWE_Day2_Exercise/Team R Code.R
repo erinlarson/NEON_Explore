@@ -17,19 +17,7 @@ library(geoNEON)
 library(raster)
 library(rhdf5)
 
-##
-#### DOWNLOAD & STACK DATA (veg structure and canopy height)
-##
-
-# download observational data with zipsByProduct()
-  # Download veg structure data
-#Only have to do this step once (the first time you work the data)
-zipsByProduct(dpID = "DP1.10098.001", 
-              site = 'WREF', #site = all for all sites
-              package = 'basic', 
-              check.size = T, # turn to false when using a continious workflow
-              savepath = "C:/Users/Al/Files/PHD/25_AUG_2016/ProjectManagement/NEON/NEON_Explore/AWE_Day2_Exercise/Data")  
-# now stack downloaded data
-stackByTable("C:/Users/Al/Files/PHD/25_AUG_2016/ProjectManagement/NEON/NEON_Explore/AWE_Day2_Exercise/Data/filesToStack10098/", folder = T)
-
+vegobs <- read.csv("AWE_Day2_Exercise/vegmerge.csv")
+str(vegobs)
+vegraster <- raster("data/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
 
