@@ -30,3 +30,4 @@ vegraster <- raster("data/NEON_D16_WREF_DP3_580000_5075000_CHM.tif")
 merged.veg <- read.delim("vegmerge.csv", sep=",")
 
 
+
